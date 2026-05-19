@@ -31,7 +31,8 @@ RESULTS_DIR = Path(__file__).resolve().parent.parent / "results"
 CSV_PATH = RESULTS_DIR / "benchmark_results.csv"
 JSONL_PATH = RESULTS_DIR / "benchmark_detail.jsonl"
 
-METHODS = ("vedic", "schoolbook", "native")
+DEFAULT_METHODS = ("vedic", "schoolbook", "native")
+METHODS = DEFAULT_METHODS  # backward compatibility
 
 _CSV_STATIC_FIELDS = [
     "run_id",
@@ -347,13 +348,18 @@ def _append_jsonl_rows(rows: list[BenchmarkRow], path: Path) -> None:
                 fh.write(json.dumps(record) + "\n")
 
 
+def _method_index(method: str, method_order: tuple[str, ...]) -> int:
+    return method_order.index(method)
+
+
 def _flush_pair_results(
     rows: list[BenchmarkRow],
     csv_path: Path,
     jsonl_path: Path,
     repeat: int,
+    method_order: tuple[str, ...] = DEFAULT_METHODS,
 ) -> None:
-    ordered = sorted(rows, key=lambda r: METHODS.index(r.method))
+    ordered = sorted(rows, key=lambda r: _method_index(r.method, method_order))
     _append_csv_rows(ordered, csv_path, repeat)
     _append_jsonl_rows(ordered, jsonl_path)
 
@@ -368,10 +374,11 @@ def _benchmark_pair_sequential(
     iterations: int,
     repeat: int,
     depth: dict,
+    method_order: tuple[str, ...] = DEFAULT_METHODS,
 ) -> list[BenchmarkRow]:
     return [
         _build_row(run_id, width, pair_index, method, a, b, product, iterations, repeat, depth)
-        for method in METHODS
+        for method in method_order
     ]
 
 
@@ -386,9 +393,10 @@ def _benchmark_pair_parallel(
     repeat: int,
     depth: dict,
     executor: ProcessPoolExecutor,
+    method_order: tuple[str, ...] = DEFAULT_METHODS,
 ) -> list[BenchmarkRow]:
     futures = {}
-    for method in METHODS:
+    for method in method_order:
         seq_depth = 0
         par_width = 0
         par_score = 0.0
@@ -419,7 +427,7 @@ def _benchmark_pair_parallel(
         row = future.result()
         rows_by_method[row.method] = row
 
-    return [rows_by_method[method] for method in METHODS]
+    return [rows_by_method[method] for method in method_order]
 
 
 def _aggregate_summaries(rows: list[BenchmarkRow]) -> list[WidthSummary]:
@@ -474,12 +482,17 @@ def run_benchmark(
     workers: int = 1,
     csv_path: Path | None = None,
     jsonl_path: Path | None = None,
+    method_order: tuple[str, ...] | None = None,
 ) -> tuple[list[BenchmarkRow], list[WidthSummary], str]:
     """Run benchmark; flush CSV + JSONL after each pair; return rows and summaries."""
     widths = digit_widths or DEFAULT_DIGIT_WIDTHS
     out_csv = csv_path or CSV_PATH
     out_jsonl = jsonl_path or JSONL_PATH
     resolved_run_id = _make_run_id(run_id)
+    order = method_order or DEFAULT_METHODS
+    for name in order:
+        if name not in DEFAULT_METHODS:
+            raise ValueError(f"unknown method in method_order: {name}")
 
     _init_output_files(out_csv, out_jsonl, repeat)
     all_rows: list[BenchmarkRow] = []
@@ -507,6 +520,7 @@ def run_benchmark(
                         iterations,
                         repeat,
                         depth,
+                        order,
                     )
                 else:
                     pair_rows = _benchmark_pair_parallel(
@@ -520,9 +534,10 @@ def run_benchmark(
                         repeat,
                         depth,
                         pool,
+                        order,
                     )
 
-                _flush_pair_results(pair_rows, out_csv, out_jsonl, repeat)
+                _flush_pair_results(pair_rows, out_csv, out_jsonl, repeat, order)
                 all_rows.extend(pair_rows)
     finally:
         if pool is not None:
