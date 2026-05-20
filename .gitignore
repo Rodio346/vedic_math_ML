@@ -30,6 +30,15 @@ htmlcov/
 vedic_benchmark/results/*
 !vedic_benchmark/results/.gitkeep
 
+# Phase 2A build and generated CSV
+phase2a/build/
+phase2a/results/*
+!phase2a/results/.gitkeep
+
+# Phase 2B generated CSV
+phase2b/results/*
+!phase2b/results/.gitkeep
+
 # Optional chart and run logs
 *.png
 vedic_benchmark/results/*.log

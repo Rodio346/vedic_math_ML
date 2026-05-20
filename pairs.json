@@ -1,0 +1,976 @@
+{
+  "seed": 42,
+  "pairs_per_width": 20,
+  "digit_widths": [
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+  ],
+  "pairs": [
+    {
+      "digit_width": 2,
+      "pair_index": 0,
+      "operand_a": 62,
+      "operand_b": 76
+    },
+    {
+      "digit_width": 2,
+      "pair_index": 1,
+      "operand_a": 79,
+      "operand_b": 99
+    },
+    {
+      "digit_width": 2,
+      "pair_index": 2,
+      "operand_a": 24,
+      "operand_b": 32
+    },
+    {
+      "digit_width": 2,
+      "pair_index": 3,
+      "operand_a": 58,
+      "operand_b": 38
+    },
+    {
+      "digit_width": 2,
+      "pair_index": 4,
+      "operand_a": 47,
+      "operand_b": 13
+    },
+    {
+      "digit_width": 2,
+      "pair_index": 5,
+      "operand_a": 38,
+      "operand_b": 24
+    },
+    {
+      "digit_width": 2,
+      "pair_index": 6,
+      "operand_a": 82,
+      "operand_b": 11
+    },
+    {
+      "digit_width": 2,
+      "pair_index": 7,
+      "operand_a": 22,
+      "operand_b": 30
+    },
+    {
+      "digit_width": 2,
+      "pair_index": 8,
+      "operand_a": 75,
+      "operand_b": 98
+    },
+    {
+      "digit_width": 2,
+      "pair_index": 9,
+      "operand_a": 48,
+      "operand_b": 98
+    },
+    {
+      "digit_width": 2,
+      "pair_index": 10,
+      "operand_a": 91,
+      "operand_b": 58
+    },
+    {
+      "digit_width": 2,
+      "pair_index": 11,
+      "operand_a": 85,
+      "operand_b": 61
+    },
+    {
+      "digit_width": 2,
+      "pair_index": 12,
+      "operand_a": 98,
+      "operand_b": 95
+    },
+    {
+      "digit_width": 2,
+      "pair_index": 13,
+      "operand_a": 51,
+      "operand_b": 55
+    },
+    {
+      "digit_width": 2,
+      "pair_index": 14,
+      "operand_a": 19,
+      "operand_b": 53
+    },
+    {
+      "digit_width": 2,
+      "pair_index": 15,
+      "operand_a": 46,
+      "operand_b": 89
+    },
+    {
+      "digit_width": 2,
+      "pair_index": 16,
+      "operand_a": 30,
+      "operand_b": 24
+    },
+    {
+      "digit_width": 2,
+      "pair_index": 17,
+      "operand_a": 75,
+      "operand_b": 18
+    },
+    {
+      "digit_width": 2,
+      "pair_index": 18,
+      "operand_a": 85,
+      "operand_b": 22
+    },
+    {
+      "digit_width": 2,
+      "pair_index": 19,
+      "operand_a": 44,
+      "operand_b": 50
+    },
+    {
+      "digit_width": 3,
+      "pair_index": 0,
+      "operand_a": 378,
+      "operand_b": 527
+    },
+    {
+      "digit_width": 3,
+      "pair_index": 1,
+      "operand_a": 599,
+      "operand_b": 363
+    },
+    {
+      "digit_width": 3,
+      "pair_index": 2,
+      "operand_a": 183,
+      "operand_b": 410
+    },
+    {
+      "digit_width": 3,
+      "pair_index": 3,
+      "operand_a": 446,
+      "operand_b": 122
+    },
+    {
+      "digit_width": 3,
+      "pair_index": 4,
+      "operand_a": 174,
+      "operand_b": 595
+    },
+    {
+      "digit_width": 3,
+      "pair_index": 5,
+      "operand_a": 111,
+      "operand_b": 217
+    },
+    {
+      "digit_width": 3,
+      "pair_index": 6,
+      "operand_a": 390,
+      "operand_b": 927
+    },
+    {
+      "digit_width": 3,
+      "pair_index": 7,
+      "operand_a": 220,
+      "operand_b": 418
+    },
+    {
+      "digit_width": 3,
+      "pair_index": 8,
+      "operand_a": 975,
+      "operand_b": 861
+    },
+    {
+      "digit_width": 3,
+      "pair_index": 9,
+      "operand_a": 764,
+      "operand_b": 136
+    },
+    {
+      "digit_width": 3,
+      "pair_index": 10,
+      "operand_a": 739,
+      "operand_b": 168
+    },
+    {
+      "digit_width": 3,
+      "pair_index": 11,
+      "operand_a": 238,
+      "operand_b": 378
+    },
+    {
+      "digit_width": 3,
+      "pair_index": 12,
+      "operand_a": 914,
+      "operand_b": 854
+    },
+    {
+      "digit_width": 3,
+      "pair_index": 13,
+      "operand_a": 257,
+      "operand_b": 316
+    },
+    {
+      "digit_width": 3,
+      "pair_index": 14,
+      "operand_a": 968,
+      "operand_b": 878
+    },
+    {
+      "digit_width": 3,
+      "pair_index": 15,
+      "operand_a": 834,
+      "operand_b": 538
+    },
+    {
+      "digit_width": 3,
+      "pair_index": 16,
+      "operand_a": 176,
+      "operand_b": 727
+    },
+    {
+      "digit_width": 3,
+      "pair_index": 17,
+      "operand_a": 517,
+      "operand_b": 246
+    },
+    {
+      "digit_width": 3,
+      "pair_index": 18,
+      "operand_a": 817,
+      "operand_b": 158
+    },
+    {
+      "digit_width": 3,
+      "pair_index": 19,
+      "operand_a": 132,
+      "operand_b": 276
+    },
+    {
+      "digit_width": 4,
+      "pair_index": 0,
+      "operand_a": 2251,
+      "operand_b": 7553
+    },
+    {
+      "digit_width": 4,
+      "pair_index": 1,
+      "operand_a": 1654,
+      "operand_b": 4744
+    },
+    {
+      "digit_width": 4,
+      "pair_index": 2,
+      "operand_a": 9449,
+      "operand_b": 3489
+    },
+    {
+      "digit_width": 4,
+      "pair_index": 3,
+      "operand_a": 9815,
+      "operand_b": 1527
+    },
+    {
+      "digit_width": 4,
+      "pair_index": 4,
+      "operand_a": 1497,
+      "operand_b": 2129
+    },
+    {
+      "digit_width": 4,
+      "pair_index": 5,
+      "operand_a": 6244,
+      "operand_b": 1892
+    },
+    {
+      "digit_width": 4,
+      "pair_index": 6,
+      "operand_a": 1505,
+      "operand_b": 3218
+    },
+    {
+      "digit_width": 4,
+      "pair_index": 7,
+      "operand_a": 9989,
+      "operand_b": 5838
+    },
+    {
+      "digit_width": 4,
+      "pair_index": 8,
+      "operand_a": 9646,
+      "operand_b": 6401
+    },
+    {
+      "digit_width": 4,
+      "pair_index": 9,
+      "operand_a": 2522,
+      "operand_b": 7520
+    },
+    {
+      "digit_width": 4,
+      "pair_index": 10,
+      "operand_a": 8843,
+      "operand_b": 6904
+    },
+    {
+      "digit_width": 4,
+      "pair_index": 11,
+      "operand_a": 3557,
+      "operand_b": 8712
+    },
+    {
+      "digit_width": 4,
+      "pair_index": 12,
+      "operand_a": 8628,
+      "operand_b": 2217
+    },
+    {
+      "digit_width": 4,
+      "pair_index": 13,
+      "operand_a": 8529,
+      "operand_b": 9919
+    },
+    {
+      "digit_width": 4,
+      "pair_index": 14,
+      "operand_a": 2792,
+      "operand_b": 8088
+    },
+    {
+      "digit_width": 4,
+      "pair_index": 15,
+      "operand_a": 4708,
+      "operand_b": 6515
+    },
+    {
+      "digit_width": 4,
+      "pair_index": 16,
+      "operand_a": 9299,
+      "operand_b": 8273
+    },
+    {
+      "digit_width": 4,
+      "pair_index": 17,
+      "operand_a": 5506,
+      "operand_b": 3511
+    },
+    {
+      "digit_width": 4,
+      "pair_index": 18,
+      "operand_a": 2747,
+      "operand_b": 6812
+    },
+    {
+      "digit_width": 4,
+      "pair_index": 19,
+      "operand_a": 2131,
+      "operand_b": 6498
+    },
+    {
+      "digit_width": 5,
+      "pair_index": 0,
+      "operand_a": 56117,
+      "operand_b": 18195
+    },
+    {
+      "digit_width": 5,
+      "pair_index": 1,
+      "operand_a": 66385,
+      "operand_b": 82566
+    },
+    {
+      "digit_width": 5,
+      "pair_index": 2,
+      "operand_a": 69463,
+      "operand_b": 84814
+    },
+    {
+      "digit_width": 5,
+      "pair_index": 3,
+      "operand_a": 55019,
+      "operand_b": 43741
+    },
+    {
+      "digit_width": 5,
+      "pair_index": 4,
+      "operand_a": 77167,
+      "operand_b": 60666
+    },
+    {
+      "digit_width": 5,
+      "pair_index": 5,
+      "operand_a": 61434,
+      "operand_b": 90682
+    },
+    {
+      "digit_width": 5,
+      "pair_index": 6,
+      "operand_a": 15361,
+      "operand_b": 64857
+    },
+    {
+      "digit_width": 5,
+      "pair_index": 7,
+      "operand_a": 96327,
+      "operand_b": 13101
+    },
+    {
+      "digit_width": 5,
+      "pair_index": 8,
+      "operand_a": 23429,
+      "operand_b": 10082
+    },
+    {
+      "digit_width": 5,
+      "pair_index": 9,
+      "operand_a": 44577,
+      "operand_b": 73118
+    },
+    {
+      "digit_width": 5,
+      "pair_index": 10,
+      "operand_a": 81655,
+      "operand_b": 11197
+    },
+    {
+      "digit_width": 5,
+      "pair_index": 11,
+      "operand_a": 51363,
+      "operand_b": 84392
+    },
+    {
+      "digit_width": 5,
+      "pair_index": 12,
+      "operand_a": 66059,
+      "operand_b": 40152
+    },
+    {
+      "digit_width": 5,
+      "pair_index": 13,
+      "operand_a": 41161,
+      "operand_b": 78585
+    },
+    {
+      "digit_width": 5,
+      "pair_index": 14,
+      "operand_a": 77364,
+      "operand_b": 57065
+    },
+    {
+      "digit_width": 5,
+      "pair_index": 15,
+      "operand_a": 67962,
+      "operand_b": 41725
+    },
+    {
+      "digit_width": 5,
+      "pair_index": 16,
+      "operand_a": 14359,
+      "operand_b": 83524
+    },
+    {
+      "digit_width": 5,
+      "pair_index": 17,
+      "operand_a": 59042,
+      "operand_b": 56327
+    },
+    {
+      "digit_width": 5,
+      "pair_index": 18,
+      "operand_a": 88771,
+      "operand_b": 54815
+    },
+    {
+      "digit_width": 5,
+      "pair_index": 19,
+      "operand_a": 83110,
+      "operand_b": 85379
+    },
+    {
+      "digit_width": 6,
+      "pair_index": 0,
+      "operand_a": 674785,
+      "operand_b": 430777
+    },
+    {
+      "digit_width": 6,
+      "pair_index": 1,
+      "operand_a": 238298,
+      "operand_b": 683957
+    },
+    {
+      "digit_width": 6,
+      "pair_index": 2,
+      "operand_a": 846110,
+      "operand_b": 660766
+    },
+    {
+      "digit_width": 6,
+      "pair_index": 3,
+      "operand_a": 416932,
+      "operand_b": 931690
+    },
+    {
+      "digit_width": 6,
+      "pair_index": 4,
+      "operand_a": 629858,
+      "operand_b": 302079
+    },
+    {
+      "digit_width": 6,
+      "pair_index": 5,
+      "operand_a": 848544,
+      "operand_b": 898999
+    },
+    {
+      "digit_width": 6,
+      "pair_index": 6,
+      "operand_a": 557029,
+      "operand_b": 273687
+    },
+    {
+      "digit_width": 6,
+      "pair_index": 7,
+      "operand_a": 262153,
+      "operand_b": 946001
+    },
+    {
+      "digit_width": 6,
+      "pair_index": 8,
+      "operand_a": 789296,
+      "operand_b": 212742
+    },
+    {
+      "digit_width": 6,
+      "pair_index": 9,
+      "operand_a": 617032,
+      "operand_b": 780857
+    },
+    {
+      "digit_width": 6,
+      "pair_index": 10,
+      "operand_a": 331106,
+      "operand_b": 328641
+    },
+    {
+      "digit_width": 6,
+      "pair_index": 11,
+      "operand_a": 899290,
+      "operand_b": 636451
+    },
+    {
+      "digit_width": 6,
+      "pair_index": 12,
+      "operand_a": 683599,
+      "operand_b": 991614
+    },
+    {
+      "digit_width": 6,
+      "pair_index": 13,
+      "operand_a": 633290,
+      "operand_b": 262440
+    },
+    {
+      "digit_width": 6,
+      "pair_index": 14,
+      "operand_a": 594705,
+      "operand_b": 327650
+    },
+    {
+      "digit_width": 6,
+      "pair_index": 15,
+      "operand_a": 129307,
+      "operand_b": 176879
+    },
+    {
+      "digit_width": 6,
+      "pair_index": 16,
+      "operand_a": 544362,
+      "operand_b": 166589
+    },
+    {
+      "digit_width": 6,
+      "pair_index": 17,
+      "operand_a": 238897,
+      "operand_b": 623120
+    },
+    {
+      "digit_width": 6,
+      "pair_index": 18,
+      "operand_a": 804920,
+      "operand_b": 270954
+    },
+    {
+      "digit_width": 6,
+      "pair_index": 19,
+      "operand_a": 235096,
+      "operand_b": 159349
+    },
+    {
+      "digit_width": 7,
+      "pair_index": 0,
+      "operand_a": 2122126,
+      "operand_b": 6776896
+    },
+    {
+      "digit_width": 7,
+      "pair_index": 1,
+      "operand_a": 7933063,
+      "operand_b": 2853961
+    },
+    {
+      "digit_width": 7,
+      "pair_index": 2,
+      "operand_a": 6427349,
+      "operand_b": 9577940
+    },
+    {
+      "digit_width": 7,
+      "pair_index": 3,
+      "operand_a": 1833391,
+      "operand_b": 1751744
+    },
+    {
+      "digit_width": 7,
+      "pair_index": 4,
+      "operand_a": 5629295,
+      "operand_b": 3589559
+    },
+    {
+      "digit_width": 7,
+      "pair_index": 5,
+      "operand_a": 8630629,
+      "operand_b": 1761621
+    },
+    {
+      "digit_width": 7,
+      "pair_index": 6,
+      "operand_a": 9460400,
+      "operand_b": 4677048
+    },
+    {
+      "digit_width": 7,
+      "pair_index": 7,
+      "operand_a": 5797546,
+      "operand_b": 7227509
+    },
+    {
+      "digit_width": 7,
+      "pair_index": 8,
+      "operand_a": 7712216,
+      "operand_b": 1511144
+    },
+    {
+      "digit_width": 7,
+      "pair_index": 9,
+      "operand_a": 5173261,
+      "operand_b": 3315054
+    },
+    {
+      "digit_width": 7,
+      "pair_index": 10,
+      "operand_a": 2605854,
+      "operand_b": 8100885
+    },
+    {
+      "digit_width": 7,
+      "pair_index": 11,
+      "operand_a": 7309253,
+      "operand_b": 6478549
+    },
+    {
+      "digit_width": 7,
+      "pair_index": 12,
+      "operand_a": 7012349,
+      "operand_b": 5502557
+    },
+    {
+      "digit_width": 7,
+      "pair_index": 13,
+      "operand_a": 7686722,
+      "operand_b": 1877835
+    },
+    {
+      "digit_width": 7,
+      "pair_index": 14,
+      "operand_a": 7926545,
+      "operand_b": 4460444
+    },
+    {
+      "digit_width": 7,
+      "pair_index": 15,
+      "operand_a": 2099964,
+      "operand_b": 5278526
+    },
+    {
+      "digit_width": 7,
+      "pair_index": 16,
+      "operand_a": 9938395,
+      "operand_b": 6342599
+    },
+    {
+      "digit_width": 7,
+      "pair_index": 17,
+      "operand_a": 3275374,
+      "operand_b": 9179855
+    },
+    {
+      "digit_width": 7,
+      "pair_index": 18,
+      "operand_a": 4728030,
+      "operand_b": 6472438
+    },
+    {
+      "digit_width": 7,
+      "pair_index": 19,
+      "operand_a": 5281171,
+      "operand_b": 8334406
+    },
+    {
+      "digit_width": 8,
+      "pair_index": 0,
+      "operand_a": 76778227,
+      "operand_b": 45725232
+    },
+    {
+      "digit_width": 8,
+      "pair_index": 1,
+      "operand_a": 58868351,
+      "operand_b": 95551877
+    },
+    {
+      "digit_width": 8,
+      "pair_index": 2,
+      "operand_a": 42545081,
+      "operand_b": 73507611
+    },
+    {
+      "digit_width": 8,
+      "pair_index": 3,
+      "operand_a": 54298395,
+      "operand_b": 21433748
+    },
+    {
+      "digit_width": 8,
+      "pair_index": 4,
+      "operand_a": 82275211,
+      "operand_b": 52597877
+    },
+    {
+      "digit_width": 8,
+      "pair_index": 5,
+      "operand_a": 40117504,
+      "operand_b": 84718491
+    },
+    {
+      "digit_width": 8,
+      "pair_index": 6,
+      "operand_a": 21440895,
+      "operand_b": 30577930
+    },
+    {
+      "digit_width": 8,
+      "pair_index": 7,
+      "operand_a": 56597503,
+      "operand_b": 23221837
+    },
+    {
+      "digit_width": 8,
+      "pair_index": 8,
+      "operand_a": 56643072,
+      "operand_b": 52860907
+    },
+    {
+      "digit_width": 8,
+      "pair_index": 9,
+      "operand_a": 39847904,
+      "operand_b": 35362988
+    },
+    {
+      "digit_width": 8,
+      "pair_index": 10,
+      "operand_a": 19225939,
+      "operand_b": 54146786
+    },
+    {
+      "digit_width": 8,
+      "pair_index": 11,
+      "operand_a": 91038586,
+      "operand_b": 91536492
+    },
+    {
+      "digit_width": 8,
+      "pair_index": 12,
+      "operand_a": 67561576,
+      "operand_b": 95226748
+    },
+    {
+      "digit_width": 8,
+      "pair_index": 13,
+      "operand_a": 21939573,
+      "operand_b": 18590606
+    },
+    {
+      "digit_width": 8,
+      "pair_index": 14,
+      "operand_a": 91056618,
+      "operand_b": 54863489
+    },
+    {
+      "digit_width": 8,
+      "pair_index": 15,
+      "operand_a": 96318586,
+      "operand_b": 67752834
+    },
+    {
+      "digit_width": 8,
+      "pair_index": 16,
+      "operand_a": 10768510,
+      "operand_b": 40497100
+    },
+    {
+      "digit_width": 8,
+      "pair_index": 17,
+      "operand_a": 55291668,
+      "operand_b": 45726097
+    },
+    {
+      "digit_width": 8,
+      "pair_index": 18,
+      "operand_a": 68306203,
+      "operand_b": 24199584
+    },
+    {
+      "digit_width": 8,
+      "pair_index": 19,
+      "operand_a": 36987510,
+      "operand_b": 69419698
+    },
+    {
+      "digit_width": 9,
+      "pair_index": 0,
+      "operand_a": 361475203,
+      "operand_b": 639242799
+    },
+    {
+      "digit_width": 9,
+      "pair_index": 1,
+      "operand_a": 693016285,
+      "operand_b": 273879085
+    },
+    {
+      "digit_width": 9,
+      "pair_index": 2,
+      "operand_a": 364225863,
+      "operand_b": 981780634
+    },
+    {
+      "digit_width": 9,
+      "pair_index": 3,
+      "operand_a": 348463332,
+      "operand_b": 993996355
+    },
+    {
+      "digit_width": 9,
+      "pair_index": 4,
+      "operand_a": 693058360,
+      "operand_b": 374703595
+    },
+    {
+      "digit_width": 9,
+      "pair_index": 5,
+      "operand_a": 526682190,
+      "operand_b": 688721622
+    },
+    {
+      "digit_width": 9,
+      "pair_index": 6,
+      "operand_a": 597809237,
+      "operand_b": 885411989
+    },
+    {
+      "digit_width": 9,
+      "pair_index": 7,
+      "operand_a": 847258341,
+      "operand_b": 688534117
+    },
+    {
+      "digit_width": 9,
+      "pair_index": 8,
+      "operand_a": 662111386,
+      "operand_b": 775301340
+    },
+    {
+      "digit_width": 9,
+      "pair_index": 9,
+      "operand_a": 467664349,
+      "operand_b": 729281830
+    },
+    {
+      "digit_width": 9,
+      "pair_index": 10,
+      "operand_a": 809359461,
+      "operand_b": 486784469
+    },
+    {
+      "digit_width": 9,
+      "pair_index": 11,
+      "operand_a": 515290882,
+      "operand_b": 398174004
+    },
+    {
+      "digit_width": 9,
+      "pair_index": 12,
+      "operand_a": 533677801,
+      "operand_b": 848645505
+    },
+    {
+      "digit_width": 9,
+      "pair_index": 13,
+      "operand_a": 108163654,
+      "operand_b": 222291583
+    },
+    {
+      "digit_width": 9,
+      "pair_index": 14,
+      "operand_a": 130434790,
+      "operand_b": 678674738
+    },
+    {
+      "digit_width": 9,
+      "pair_index": 15,
+      "operand_a": 377242470,
+      "operand_b": 134995511
+    },
+    {
+      "digit_width": 9,
+      "pair_index": 16,
+      "operand_a": 612995296,
+      "operand_b": 825819381
+    },
+    {
+      "digit_width": 9,
+      "pair_index": 17,
+      "operand_a": 974666209,
+      "operand_b": 290730413
+    },
+    {
+      "digit_width": 9,
+      "pair_index": 18,
+      "operand_a": 472882623,
+      "operand_b": 761253798
+    },
+    {
+      "digit_width": 9,
+      "pair_index": 19,
+      "operand_a": 421787450,
+      "operand_b": 494288081
+    }
+  ]
+}

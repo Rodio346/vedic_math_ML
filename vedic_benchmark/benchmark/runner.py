@@ -544,3 +544,89 @@ def run_benchmark(
             pool.shutdown(wait=True)
 
     return all_rows, _aggregate_summaries(all_rows), resolved_run_id
+
+
+def _load_pairs_from_json(pairs_file: Path) -> list[tuple[int, int, int, int]]:
+    """Return list of (digit_width, pair_index, operand_a, operand_b)."""
+    import json
+
+    data = json.loads(pairs_file.read_text(encoding="utf-8"))
+    result: list[tuple[int, int, int, int]] = []
+    for entry in data["pairs"]:
+        result.append(
+            (
+                int(entry["digit_width"]),
+                int(entry["pair_index"]),
+                int(entry["operand_a"]),
+                int(entry["operand_b"]),
+            )
+        )
+    return result
+
+
+def run_benchmark_from_pairs(
+    pairs_file: Path,
+    iterations: int = DEFAULT_ITERATIONS,
+    repeat: int = DEFAULT_REPEAT,
+    run_id: str | None = None,
+    workers: int = 1,
+    csv_path: Path | None = None,
+    jsonl_path: Path | None = None,
+    method_order: tuple[str, ...] | None = None,
+) -> tuple[list[BenchmarkRow], list[WidthSummary], str]:
+    """Run benchmark using operand pairs from pairs.json (Phase 2A ground truth)."""
+    out_csv = csv_path or CSV_PATH
+    out_jsonl = jsonl_path or JSONL_PATH
+    resolved_run_id = _make_run_id(run_id)
+    order = method_order or DEFAULT_METHODS
+    for name in order:
+        if name not in DEFAULT_METHODS:
+            raise ValueError(f"unknown method in method_order: {name}")
+
+    _init_output_files(out_csv, out_jsonl, repeat)
+    all_rows: list[BenchmarkRow] = []
+
+    pool: ProcessPoolExecutor | None = None
+    if workers > 1:
+        pool = ProcessPoolExecutor(max_workers=workers)
+
+    try:
+        for width, pair_index, a, b in _load_pairs_from_json(pairs_file):
+            depth = compare_depth(width)
+            product = _assert_correctness(a, b, width, pair_index)
+
+            if pool is None:
+                pair_rows = _benchmark_pair_sequential(
+                    resolved_run_id,
+                    width,
+                    pair_index,
+                    a,
+                    b,
+                    product,
+                    iterations,
+                    repeat,
+                    depth,
+                    order,
+                )
+            else:
+                pair_rows = _benchmark_pair_parallel(
+                    resolved_run_id,
+                    width,
+                    pair_index,
+                    a,
+                    b,
+                    product,
+                    iterations,
+                    repeat,
+                    depth,
+                    pool,
+                    order,
+                )
+
+            _flush_pair_results(pair_rows, out_csv, out_jsonl, repeat, order)
+            all_rows.extend(pair_rows)
+    finally:
+        if pool is not None:
+            pool.shutdown(wait=True)
+
+    return all_rows, _aggregate_summaries(all_rows), resolved_run_id

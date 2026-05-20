@@ -1,0 +1,204 @@
+{
+  "entries": [
+    {
+      "digit_width": 2,
+      "pair_index": 0,
+      "operand_a": 62,
+      "operand_b": 76,
+      "method": "vedic",
+      "multiplications": 4,
+      "additions": 12,
+      "carry_propagations": 4
+    },
+    {
+      "digit_width": 2,
+      "pair_index": 0,
+      "operand_a": 62,
+      "operand_b": 76,
+      "method": "schoolbook",
+      "multiplications": 4,
+      "additions": 9,
+      "carry_propagations": 5
+    },
+    {
+      "digit_width": 2,
+      "pair_index": 1,
+      "operand_a": 79,
+      "operand_b": 99,
+      "method": "vedic",
+      "multiplications": 4,
+      "additions": 14,
+      "carry_propagations": 6
+    },
+    {
+      "digit_width": 2,
+      "pair_index": 1,
+      "operand_a": 79,
+      "operand_b": 99,
+      "method": "schoolbook",
+      "multiplications": 4,
+      "additions": 8,
+      "carry_propagations": 4
+    },
+    {
+      "digit_width": 2,
+      "pair_index": 2,
+      "operand_a": 24,
+      "operand_b": 32,
+      "method": "vedic",
+      "multiplications": 4,
+      "additions": 6,
+      "carry_propagations": 1
+    },
+    {
+      "digit_width": 2,
+      "pair_index": 2,
+      "operand_a": 24,
+      "operand_b": 32,
+      "method": "schoolbook",
+      "multiplications": 4,
+      "additions": 5,
+      "carry_propagations": 1
+    },
+    {
+      "digit_width": 2,
+      "pair_index": 3,
+      "operand_a": 58,
+      "operand_b": 38,
+      "method": "vedic",
+      "multiplications": 4,
+      "additions": 12,
+      "carry_propagations": 5
+    },
+    {
+      "digit_width": 2,
+      "pair_index": 3,
+      "operand_a": 58,
+      "operand_b": 38,
+      "method": "schoolbook",
+      "multiplications": 4,
+      "additions": 10,
+      "carry_propagations": 6
+    },
+    {
+      "digit_width": 2,
+      "pair_index": 4,
+      "operand_a": 47,
+      "operand_b": 13,
+      "method": "vedic",
+      "multiplications": 4,
+      "additions": 9,
+      "carry_propagations": 3
+    },
+    {
+      "digit_width": 2,
+      "pair_index": 4,
+      "operand_a": 47,
+      "operand_b": 13,
+      "method": "schoolbook",
+      "multiplications": 4,
+      "additions": 7,
+      "carry_propagations": 3
+    },
+    {
+      "digit_width": 3,
+      "pair_index": 0,
+      "operand_a": 378,
+      "operand_b": 527,
+      "method": "vedic",
+      "multiplications": 9,
+      "additions": 25,
+      "carry_propagations": 9
+    },
+    {
+      "digit_width": 3,
+      "pair_index": 0,
+      "operand_a": 378,
+      "operand_b": 527,
+      "method": "schoolbook",
+      "multiplications": 9,
+      "additions": 19,
+      "carry_propagations": 11
+    },
+    {
+      "digit_width": 3,
+      "pair_index": 1,
+      "operand_a": 599,
+      "operand_b": 363,
+      "method": "vedic",
+      "multiplications": 9,
+      "additions": 27,
+      "carry_propagations": 10
+    },
+    {
+      "digit_width": 3,
+      "pair_index": 1,
+      "operand_a": 599,
+      "operand_b": 363,
+      "method": "schoolbook",
+      "multiplications": 9,
+      "additions": 23,
+      "carry_propagations": 14
+    },
+    {
+      "digit_width": 3,
+      "pair_index": 2,
+      "operand_a": 183,
+      "operand_b": 410,
+      "method": "vedic",
+      "multiplications": 9,
+      "additions": 11,
+      "carry_propagations": 3
+    },
+    {
+      "digit_width": 3,
+      "pair_index": 2,
+      "operand_a": 183,
+      "operand_b": 410,
+      "method": "schoolbook",
+      "multiplications": 9,
+      "additions": 9,
+      "carry_propagations": 3
+    },
+    {
+      "digit_width": 3,
+      "pair_index": 3,
+      "operand_a": 446,
+      "operand_b": 122,
+      "method": "vedic",
+      "multiplications": 9,
+      "additions": 19,
+      "carry_propagations": 8
+    },
+    {
+      "digit_width": 3,
+      "pair_index": 3,
+      "operand_a": 446,
+      "operand_b": 122,
+      "method": "schoolbook",
+      "multiplications": 9,
+      "additions": 15,
+      "carry_propagations": 6
+    },
+    {
+      "digit_width": 3,
+      "pair_index": 4,
+      "operand_a": 174,
+      "operand_b": 595,
+      "method": "vedic",
+      "multiplications": 9,
+      "additions": 23,
+      "carry_propagations": 10
+    },
+    {
+      "digit_width": 3,
+      "pair_index": 4,
+      "operand_a": 174,
+      "operand_b": 595,
+      "method": "schoolbook",
+      "multiplications": 9,
+      "additions": 18,
+      "carry_propagations": 11
+    }
+  ]
+}
