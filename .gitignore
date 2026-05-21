@@ -39,6 +39,11 @@ phase2a/results/*
 phase2b/results/*
 !phase2b/results/.gitkeep
 
+# Phase 3 build and generated CSV
+phase3/build/
+phase3/results/*
+!phase3/results/.gitkeep
+
 # Optional chart and run logs
 *.png
 vedic_benchmark/results/*.log
