@@ -1,275 +1,513 @@
-# Vedic Math ML — Algorithm Benchmark (Phase 1)
+# Vedic Math ML — Multiplication Benchmark & Parallelism Study
 
-Research project asking whether **Vedic multiplication** (Urdhva-Tiryagbhyam) exposes more **parallel structure** than grade-school multiplication — properties that matter on GPUs and custom hardware, not whether Python can beat the built-in `*` operator.
+Research project comparing **Urdhva-Tiryagbhyam** (Vedic column-wise multiplication) with **grade-school** partial-product multiplication across four phases: instrumented Python benchmarks, a C++ port, a DAG-based scheduler simulator, and CUDA kernels on real GPU hardware.
 
-Phase 1 is a **Python benchmark** that measures, for each random operand pair:
-
-1. **Wall-clock time** (microseconds per multiply)
-2. **Raw operation counts** (every single-digit multiply, add, and carry)
-3. **Theoretical parallelism** (dependency-graph width, depth, and score)
-
-Results are saved per calculation so you can analyze variance, outliers, and scaling from 2- through 8-digit operands.
+The central question is not “which method is fastest in Python,” but whether Vedic’s **dependency structure** exposes more useful parallelism for hardware—and whether that structure **predicts** measured GPU speedups.
 
 ---
 
-## Why this exists
+## 1. Goal of the experiment
 
-| Question | What we compare |
-|----------|-----------------|
-| Is the math correct? | Vedic vs schoolbook vs `int` multiply — must match exactly |
-| How much “work” does each algorithm do? | Instrumented single-digit operation counters |
-| How parallel is the *structure*? | DAG model: `parallelism_score = parallel_width / sequential_depth` |
-| How fast is it in CPython? | `timeit` timing (dominated by interpreter overhead for instrumented code) |
+| Research question | How we answer it |
+|-------------------|----------------|
+| Are both algorithms **mathematically correct** on random operands? | Every phase asserts `vedic(a,b) == schoolbook(a,b) == a*b` |
+| How much **structural work** does each method do? | Count single-digit MULT, ADD, and CARRY events (Phase 1 / 2A) |
+| How **parallel** is each method in theory? | DAG width, depth, and `parallelism_score` (Phase 1) |
+| How does parallel **completion time** scale with workers for **real** carries? | DAG simulator on actual operand pairs (Phase 2B) |
+| Does the DAG model **predict** GPU behavior? | CUDA timing vs Phase 2B predictions (Phase 3) |
 
-**Hypothesis:** Urdhva-Tiryagbhyam groups work **by output column** (all products with `i + j = k` before carry), while schoolbook builds **partial-product rows**. That difference may show up in parallelism scores even when Python’s native `int` multiply is fastest overall.
+**Hypothesis:** Vedic groups work by **output column** (all cross-products with `i + j = k`, then carry). Schoolbook builds **partial-product rows** then accumulates. That structural difference should show up as different parallelism profiles—and, above some parallelism level, Vedic may complete fewer dependent steps per multiply.
 
-**Not in scope for Phase 1:** NumPy, CUDA, or beating production libraries. Those are planned for later phases.
+**Out of scope:** Beating `numpy`, production big-integer libraries, or optimal CUDA implementations. Phases 1–3 are **measurement and validation** pipelines.
 
 ---
 
-## Repository layout
+## 2. Requirements
+
+### All phases
+
+| Requirement | Notes |
+|-------------|--------|
+| **Python 3.10+** | Phase 1, 2B, tools, tests |
+| **Git** | Clone this repository |
+| **`pairs.json`** | 160 fixed operand pairs (widths 2–9, seed 42); generated once via `phase2a/tools/export_pairs.py` |
+
+```powershell
+pip install -r requirements-dev.txt   # pytest for tests
+```
+
+### Phase 1 — Python benchmark
+
+- Standard library only for the benchmark core  
+- Optional: `matplotlib` for `--chart`
+
+### Phase 2A — C++ port
+
+| Tool | Windows (documented setup) |
+|------|----------------------------|
+| CMake 3.14+ | `winget install Kitware.CMake` |
+| **g++** (MinGW / WinLibs) | `winget install BrechtSanders.WinLibs.POSIX.UCRT` |
+| PATH | `CMake\bin`, WinLibs `mingw64\bin` |
+
+### Phase 2B — DAG simulator
+
+- Python 3.10+ and `pytest`  
+- No GPU required
+
+### Phase 3 — CUDA
+
+| Tool | Notes |
+|------|--------|
+| **NVIDIA GPU** + driver | Target: RTX 3050 Ti (SM **8.6**) |
+| **CUDA Toolkit** (`nvcc`) | Test: `nvcc --version` |
+| **CMake 3.18+** | With CUDA language support |
+| **MSVC** (Visual Studio 2022 or **2026 / VS 18**) | Required as CUDA host compiler on Windows |
+
+PyTorch seeing CUDA does **not** replace `nvcc` + a C++ build for Phase 3.
+
+---
+
+## 3. Shared conventions
+
+### Operand representation
+
+- Base **10**, digits stored **LSB at index 0** (index 0 = ones place)  
+- Operands padded to length `n = max(len(a), len(b))` before multiply  
+- Lookup table `MULT_TABLE[d1][d2]` for single-digit products (same values in Python, C++, and CUDA)
+
+### Ground-truth pairs
+
+[`pairs.json`](pairs.json) at the repo root: **20 pairs × digit widths 2–9** (160 total), RNG seed **42**. All phases that benchmark use this file so results are comparable.
+
+### Algorithms (conceptual)
+
+**Vedic (Urdhva-Tiryagbhyam)** — for each column `k = 0 … 2n−2`:
+
+- Cross-products: `a[i] * b[j]` where `i + j = k` and `0 ≤ i,j < n`  
+- Sum products + fold **carry digit list** from column `k−1` (list semantics, not a single scalar)  
+- Result digit at `k` = LSB of column sum; overflow digits become carries into column `k+1`
+
+**Schoolbook** — for each digit `b[j]`:
+
+- Row: `a[i] * b[j]` with row carry chain → partial row digits  
+- Accumulate each partial into the result at offset `j` (instrumented digit adds)
+
+---
+
+## 4. Project flow (all phases)
+
+```mermaid
+flowchart TB
+  subgraph ground [Ground truth]
+    pairs["pairs.json\n160 pairs seed 42"]
+  end
+
+  subgraph p1 [Phase 1 Python]
+    py_alg["vedic.py / schoolbook.py\ninstrumented digits"]
+    py_run["benchmark/runner.py"]
+    p1csv["benchmark_results.csv\nbenchmark_detail.jsonl"]
+  end
+
+  subgraph p2a [Phase 2A C++]
+    cpp_alg["vedic.hpp / schoolbook.hpp"]
+    cpp_bench["benchmark.exe"]
+    p2acsv["phase2a/results/phase2a.csv"]
+    parity["counter_parity.json\n20 golden counts"]
+  end
+
+  subgraph p2b [Phase 2B DAG]
+    dag_build["vedic_dag / schoolbook_dag"]
+    sched["scheduler + crossover"]
+    p2bcsv["phase2b.csv / phase2b_summary.csv"]
+  end
+
+  subgraph p3 [Phase 3 CUDA]
+    val["validator.exe\n160/160 gate"]
+    gpu["benchmark.exe"]
+    p3csv["phase3.csv"]
+    cmp["compare_dag.py"]
+    pred["prediction_vs_actual.csv"]
+  end
+
+  pairs --> py_run
+  pairs --> cpp_bench
+  pairs --> dag_build
+  pairs --> val
+  py_alg --> py_run
+  cpp_alg --> cpp_bench
+  py_alg --> parity
+  cpp_alg --> parity
+  dag_build --> sched
+  sched --> p2bcsv
+  val --> gpu
+  gpu --> p3csv
+  p2bcsv --> cmp
+  p3csv --> cmp
+  cmp --> pred
+  p1csv --> parity
+```
+
+---
+
+## 5. Phase 1 — Python benchmark
+
+### What it measures
+
+1. **Wall-clock time** (`timeit`, microseconds)  
+2. **Operation counts** — `multiplications`, `additions`, `carry_propagations`, `total_ops`  
+3. **Theoretical DAG metrics** from digit width `N` (not per-pair): `parallel_width`, `sequential_depth`, `parallelism_score`
+
+### Key calculations
+
+**Per pair (instrumented run):**
+
+- Each `single_digit_mult` → `multiplications += 1`  
+- Each digit add / carry in `_digits.py` → `additions` / `carry_propagations`  
+- Vedic: `multiplications = n²` (padded width)
+
+**Theoretical depth** ([`vedic_benchmark/analysis/depth.py`](vedic_benchmark/analysis/depth.py)) — worst-case column model:
+
+| Algorithm | `parallel_width` | `sequential_depth` |
+|-----------|------------------|---------------------|
+| Vedic | `N` | `Σ_k (1 + ⌈log₂ p⌉ if p>1 + carry_layer)` where `p = min(k+1, 2n−1−k)` and carry_layer adds 1 if `p×81 ≥ 10` |
+| Schoolbook | `N²` | `2N − 1` (row depth `N` + `N−1` accumulations) |
+
+`parallelism_score = parallel_width / sequential_depth`
+
+### Code flow
+
+```mermaid
+flowchart LR
+  main["vedic_benchmark/main.py"]
+  runner["benchmark/runner.py"]
+  vedic["algorithms/vedic.py"]
+  school["algorithms/schoolbook.py"]
+  native["algorithms/native.py"]
+  depth["analysis/depth.py"]
+  csv["results/benchmark_results.csv"]
+  jsonl["results/benchmark_detail.jsonl"]
+
+  main --> runner
+  runner --> vedic
+  runner --> school
+  runner --> native
+  runner --> depth
+  runner --> csv
+  runner --> jsonl
+```
+
+For each pair: correctness check → one instrumented multiply per method (counts) → timed `multiply_fast` loops → append rows.
+
+### Reproduce Phase 1
+
+From repository root:
+
+```powershell
+pip install -r requirements-dev.txt
+python -m pytest tests/ -v
+
+# Smoke test
+python -m vedic_benchmark.main --digits 2 --pairs 2 --iterations 1000 --repeat 3
+
+# Full-style run (default widths 2–8, 20 pairs, 100k iterations — slow)
+python -m vedic_benchmark.main --workers 4
+
+# Same pairs as Phase 2A (recommended for cross-phase compare)
+python vedic_benchmark/tools/run_from_pairs.py --pairs pairs.json --iterations 100000 --repeat 5 --workers 4
+```
+
+**Outputs (gitignored):**
+
+- [`vedic_benchmark/results/benchmark_results.csv`](vedic_benchmark/results/benchmark_results.csv) — one row per `(pair, method)`  
+- [`vedic_benchmark/results/benchmark_detail.jsonl`](vedic_benchmark/results/benchmark_detail.jsonl) — one line per timing repeat  
+
+**Verification:**
+
+```powershell
+python scripts/verify_counters.py
+python scripts/audit_results.py
+```
+
+---
+
+## 6. Phase 2A — C++ benchmark port
+
+### What it measures
+
+Same CSV schema as Phase 1 (plus `compiler_flags`, `warmup_iterations`, `platform`): proves operation counts and relative timing are reproducible outside Python.
+
+### Key calculations
+
+Identical instrumentation rules to Phase 1 (including schoolbook’s selective ADD counting when `carry != 0` in the partial-product row — preserved for cross-phase parity).
+
+**Gate:** 20 golden counter entries in [`phase2a/verification/counter_parity.json`](phase2a/verification/counter_parity.json) must match Python before `benchmark.exe` builds.
+
+### Code flow
+
+```mermaid
+flowchart TB
+  export["tools/export_pairs.py"]
+  pairs["pairs.json"]
+  test["test_digits / test_algorithms"]
+  verify["verify.exe\ncounter parity 20/20"]
+  bench["benchmark.exe"]
+  csv["phase2a/results/phase2a.csv"]
+  compare["tools/compare_phases.py"]
+
+  export --> pairs
+  pairs --> bench
+  test --> verify
+  verify --> bench
+  bench --> csv
+  csv --> compare
+```
+
+### Reproduce Phase 2A
+
+```powershell
+cd phase2a
+cmake -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-O2"
+cmake --build build
+# run_tests runs automatically before benchmark links
+
+.\build\benchmark.exe --input ..\pairs.json --output results\phase2a.csv --iterations 100000 --repeats 5
+```
+
+**End-to-end** (from repo root, includes Phase 1 re-run + compare):
+
+```powershell
+.\phase2a\run_pipeline.ps1
+```
+
+**Outputs:**
+
+- [`phase2a/results/phase2a.csv`](phase2a/results/phase2a.csv)  
+- [`phase2a/results/comparison.csv`](phase2a/results/comparison.csv) — after `compare_phases.py`  
+
+Details: [`phase2a/README.md`](phase2a/README.md)
+
+---
+
+## 7. Phase 2B — DAG simulator & crossover
+
+### What it measures
+
+Builds an **operation DAG** per `(a, b)` with nodes `MULT`, `ADD`, `CARRY` using **actual** carries (not Phase 1 worst-case). Simulates a FIFO worker pool scheduling the DAG; finds **crossover worker count** where Vedic completion time becomes strictly less than schoolbook’s.
+
+### Key calculations
+
+**DAG build (per pair):**
+
+- Node counts match Phase 1 `OperationCounter` totals  
+- `MULT` nodes: `n²` for both methods (padded width)
+
+**Scheduler (discrete time steps):**
+
+- Ready nodes = all deps satisfied; up to `workers` start each step  
+- `completion_time` = number of steps until all nodes done  
+- `workers = -1` row: **critical path length** (unlimited parallelism)  
+- `utilisation = total_ops / (workers × completion_time)`  
+- `speedup_vs_serial = completion_time(workers=1) / completion_time(w)`
+
+**Crossover** ([`phase2b/analysis/crossover.py`](phase2b/analysis/crossover.py)):
+
+- Minimum `W > 1` where `vedic(W) < schoolbook(W)` (strict; `W=1` excluded)  
+- `efficiency_ratio = schoolbook_min_completion / vedic_min_completion` at unlimited workers (`>1` ⇒ shorter Vedic critical path)
+
+**Worker sweep per pair:** `{1, 2, 4, 8, n, n//2+1, 2n, n², unlimited}`; for `n ≥ 7` also `{n+1, n+2, n+4}`.
+
+### Code flow
+
+```mermaid
+flowchart LR
+  main["phase2b/main.py"]
+  vdag["dag/vedic_dag.py"]
+  sdag["dag/schoolbook_dag.py"]
+  sched["dag/scheduler.py"]
+  xover["analysis/crossover.py"]
+  out["phase2b.csv"]
+  sum["phase2b_summary.csv"]
+
+  main --> vdag
+  main --> sdag
+  vdag --> sched
+  sdag --> sched
+  sched --> xover
+  xover --> out
+  xover --> sum
+```
+
+### Reproduce Phase 2B
+
+```powershell
+cd phase2b
+pip install -r ..\requirements-dev.txt
+python -m pytest tests/ -v
+
+python main.py --pairs-json ..\pairs.json --digit-widths 2 3 4 5 6 7 8 9 --output results\phase2b.csv
+```
+
+**Outputs:**
+
+- [`phase2b/results/phase2b.csv`](phase2b/results/phase2b.csv) — one row per `(pair, algorithm, workers)`  
+- [`phase2b/results/phase2b_summary.csv`](phase2b/results/phase2b_summary.csv) — aggregated per `digit_width`  
+
+Details: [`phase2b/README.md`](phase2b/README.md)
+
+---
+
+## 8. Phase 3 — CUDA kernels & DAG validation
+
+### What it measures
+
+GPU implementation of digit-level Vedic and schoolbook multiply; **validator must pass 160/160** before benchmark runs. Compares measured speedup vs Phase 2B predicted speedup and crossover.
+
+### Key calculations
+
+**Vedic GPU (Option A):**
+
+- One `vedic_column_kernel` launch per column `k` with `cudaDeviceSynchronize()` between columns (carry dependency)  
+- `threads_per_column_block` = Phase 2B `workers` analogue (intra-column parallelism)  
+- Cross-pair at column `k`: `i` runs from `max(0, k−n+1)` to `min(k, n−1)`, `j = k − i`
+
+**Schoolbook GPU:**
+
+- Pass 1: `n` blocks (one row per `b[j]`), `row_threads` threads  
+- Pass 2: single-thread accumulation (matches Phase 2B DAG)
+
+**Mapping:**
+
+| Phase 2B | Phase 3 |
+|----------|---------|
+| `workers` | `threads_per_column_block` |
+| `workers = -1` | critical path (not timed as separate GPU row) |
+| `completion_time(W)` | simulated steps | `mean_time_us` at thread count `t` |
+
+**Comparison** ([`phase3/analysis/compare_dag.py`](phase3/analysis/compare_dag.py)):
+
+- `vedic_max_speedup` = max over `t` of `mean(t=1)/mean(t)`  
+- `prediction_accurate_within_2x`: `0.5 ≤ actual_crossover / predicted_crossover ≤ 2.0` (and similar for speedup)
+
+### Code flow
+
+```mermaid
+flowchart TB
+  cmake["CMake: validator before benchmark"]
+  val["host/validator.cu\n160 pairs"]
+  bench["host/benchmark.cu"]
+  vk["kernels/vedic_kernel.cuh"]
+  sk["kernels/schoolbook_kernel.cuh"]
+  p3csv["results/phase3.csv"]
+  cmp["analysis/compare_dag.py"]
+  pred["prediction_vs_actual.csv"]
+
+  cmake --> val
+  val --> bench
+  bench --> vk
+  bench --> sk
+  bench --> p3csv
+  p2b["phase2b_summary.csv"] --> cmp
+  p3csv --> cmp
+  cmp --> pred
+```
+
+### Reproduce Phase 3
+
+```powershell
+cd phase3
+
+# Use YOUR Visual Studio generator (2022 or 2026):
+cmake -B build -G "Visual Studio 18 2026" -A x64
+cmake --build build --config Release
+
+# Manual validator (optional; build already runs it)
+.\build\Release\validator.exe --input ..\pairs.json
+
+# Benchmark — full plan uses 10000 iterations (very slow); 1000 is a practical run
+.\build\Release\benchmark.exe --input ..\pairs.json --digit-widths 4 5 6 7 8 9 --iterations 1000 --warmup 100 --output results\phase3.csv
+
+python analysis\compare_dag.py
+```
+
+**Outputs:**
+
+- [`phase3/results/phase3.csv`](phase3/results/phase3.csv)  
+- [`phase3/results/prediction_vs_actual.csv`](phase3/results/prediction_vs_actual.csv)  
+
+Details: [`phase3/README.md`](phase3/README.md)
+
+---
+
+## 9. Repository layout
 
 ```
 vedic_math_ML/
-├── README.md                 ← you are here
-├── .gitignore
-└── vedic_benchmark/          ← Phase 1 package
-    ├── main.py               ← CLI entry point
-    ├── algorithms/
-    │   ├── vedic.py          ← Urdhva-Tiryagbhyam (column-wise)
-    │   ├── schoolbook.py     ← Partial-products method
-    │   ├── native.py         ← Python int * (timing baseline)
-    │   └── _digits.py        ← Digit lists + instrumented primitives
-    ├── analysis/
-    │   ├── counter.py        ← OperationCounter
-    │   └── depth.py          ← Theoretical DAG metrics
-    ├── benchmark/
-    │   └── runner.py           ← Correctness, timing, CSV + JSONL export
-    └── results/              ← Generated at runtime (gitignored)
-        ├── benchmark_results.csv
-        └── benchmark_detail.jsonl
+├── README.md                 ← this file
+├── pairs.json                ← shared operands (seed 42)
+├── requirements-dev.txt
+├── vedic_benchmark/          ← Phase 1
+├── phase2a/                  ← C++ port + counter parity
+├── phase2b/                  ← DAG simulator
+├── phase3/                   ← CUDA kernels + GPU benchmark
+├── tests/                    ← Phase 1 pytest suite
+└── scripts/                  ← audit / verify helpers
 ```
 
----
-
-## Requirements
-
-- **Python 3.10+**
-- **Standard library only** for the benchmark core
-- **Optional:** `matplotlib` if you use `--chart`
-
-No `pip install` is required for the benchmark itself. Clone the repo and run from the project root.
+Generated artifacts (`results/*.csv`, `build/`, `__pycache__/`) are **gitignored**; regenerate locally with the commands above.
 
 ---
 
-## Quick start
+## 10. Suggested reproduction order
 
-Open a terminal in the repository root (`vedic_math_ML`):
+Run in this order for a full paper-style pipeline:
 
-```powershell
-# Smoke test (~10 seconds)
-python -m vedic_benchmark.main --digits 2 --pairs 2 --iterations 1000 --repeat 3
-
-# Faster development run
-python -m vedic_benchmark.main --iterations 10000 --workers 4
-
-# Full experiment (slow: 7 widths × 20 pairs × 100k iterations)
-python -m vedic_benchmark.main --workers 4
-```
-
-After a run you will see:
-
-- **Run ID** in the console
-- **`vedic_benchmark/results/benchmark_results.csv`** — one row per (pair, method)
-- **`vedic_benchmark/results/benchmark_detail.jsonl`** — one line per timing repeat
+| Step | Phase | Command summary |
+|------|-------|-----------------|
+| 1 | Pairs | `python phase2a/tools/export_pairs.py` |
+| 2 | Phase 1 tests | `python -m pytest tests/ -v` |
+| 3 | Phase 1 benchmark | `python vedic_benchmark/tools/run_from_pairs.py ...` |
+| 4 | Phase 2A | `cd phase2a` → cmake build → `benchmark.exe` |
+| 5 | Phase 2B tests + run | `cd phase2b` → pytest → `main.py` |
+| 6 | Phase 3 | `cd phase3` → cmake build → `benchmark.exe` → `compare_dag.py` |
 
 ---
 
-## CLI reference
+## 11. How to read results (high level)
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--digits` | `2 3 4 5 6 7 8` | Operand digit widths (each width uses numbers with exactly that many digits) |
-| `--pairs` | `20` | Random `(a, b)` pairs generated per width |
-| `--iterations` | `100000` | Inner `timeit` loop count per repeat sample |
-| `--repeat` | `5` | Number of repeat samples → `time_repeat_1` … `time_repeat_N` in CSV |
-| `--workers` | `1` | `>1` runs timing jobs in **separate processes** (not threads) |
-| `--run-id` | auto | Identifier stored in every output row |
-| `--no-summary` | off | Skip the width-averaged table on stdout |
-| `--chart` | off | Write `benchmark_chart.png` (needs matplotlib) |
+| Phase | Primary artifact | What “good” looks like |
+|-------|------------------|-------------------------|
+| 1 | `benchmark_results.csv` | Vedic vs schoolbook trends in ops and `parallelism_score` vs width |
+| 2A | `phase2a.csv` + `comparison.csv` | Near-zero Phase1 vs Phase2 **ratio** change (`ratio_change` in compare) |
+| 2B | `phase2b_summary.csv` | `efficiency_ratio > 1` at larger widths; finite `avg_crossover_workers` where Vedic wins under schedule |
+| 3 | `prediction_vs_actual.csv` | `model_valid=yes` for most widths 4–9 |
 
-**Examples**
+**Caveats:**
 
-```powershell
-# Only 4-digit operands, 10 pairs
-python -m vedic_benchmark.main --digits 4 --pairs 10
-
-# Digit widths 2 through 5 only
-python -m vedic_benchmark.main --digits 2 3 4 5
-
-# Parallel timing on 4 CPU cores
-python -m vedic_benchmark.main --workers 4 --iterations 10000
-```
+- Phase 1/2A Python times include heavy interpreter overhead — compare **ratios**, not absolutes.  
+- Phase 2B uses **simulated** steps, not nanoseconds.  
+- Phase 3 Vedic pays **per-column kernel launch + sync**; small `n` is launch-bound — trust **speedup ratios**, not raw µs vs CPU.
 
 ---
 
-## What each algorithm does
+## 12. Phase-specific documentation
 
-### Urdhva-Tiryagbhyam (`vedic.py`)
-
-For two `N`-digit operands (base 10, LSB-first digit lists):
-
-1. For each output column index `k` from `0` to `2N - 2`, compute all products `a[i] * b[j]` where `i + j = k`.
-2. Sum those products into a column total using instrumented adds.
-3. Write the units digit to the result and carry the rest into column `k + 1`.
-
-Every single-digit multiply and add goes through `OperationCounter`.
-
-### Schoolbook (`schoolbook.py`)
-
-Classic partial products:
-
-1. For each digit of the multiplier, multiply the entire multiplicand digit-by-digit.
-2. Shift the partial row by the digit position.
-3. Add into an accumulator with explicit carries.
-
-Same instrumentation rules as Vedic.
-
-### Native (`native.py`)
-
-Calls `a * b` with no counter. Used for **correctness checks** and a **wall-clock ceiling** (optimized CPython big integers).
+- Phase 1 detail: [`vedic_benchmark/README.md`](vedic_benchmark/README.md)  
+- Phase 2A: [`phase2a/README.md`](phase2a/README.md), [`phase2a/VERIFICATION.md`](phase2a/VERIFICATION.md)  
+- Phase 2B: [`phase2b/README.md`](phase2b/README.md)  
+- Phase 3: [`phase3/README.md`](phase3/README.md)  
 
 ---
 
-## Output files explained
-
-Results are **appended after each operand pair** (all three methods). If a long run is interrupted, completed pairs remain on disk.
-
-### Summary CSV — `benchmark_results.csv`
-
-One row per **`(digit_width, pair_index, method)`**.
-
-| Column | Meaning |
-|--------|---------|
-| `run_id` | Benchmark invocation id |
-| `operand_a`, `operand_b`, `product` | Exact integers for this row |
-| `time_repeat_1` … `N` | Microseconds per call for each `timeit` repeat |
-| `mean_time_us`, `std_time_us` | Mean and standard deviation across repeats |
-| `multiplications`, `additions`, `carry_propagations` | Counted primitive ops (0 for native) |
-| `total_ops` | Sum of the three counters |
-| `sequential_depth`, `parallel_width`, `parallelism_score` | Theoretical DAG metrics (vedic/schoolbook) |
-
-### Detail JSONL — `benchmark_detail.jsonl`
-
-One JSON object per **`(pair, method, repeat_index)`** — finest granularity for plotting and filtering, e.g. in pandas:
-
-```python
-import pandas as pd
-df = pd.read_json("vedic_benchmark/results/benchmark_detail.jsonl", lines=True)
-df[df["method"] == "vedic"].groupby("digit_width")["time_us"].mean()
-```
-
-### CLI summary table
-
-Unless you pass `--no-summary`, the program prints **one row per digit width** averaged over all pairs. That is only a quick overview; **use the CSV/JSONL for per-calculation analysis.**
-
----
-
-## Metrics cheat sheet
-
-| Metric | Interpretation |
-|--------|----------------|
-| **Timing** | Python overhead is large for instrumented code; compare *relative* trends across methods and widths, not absolute speed vs NumPy |
-| **total_ops** | Structural “work” — comparable between Vedic and schoolbook |
-| **parallelism_score** | Higher ⇒ more theoretical concurrency in the DAG model (not measured GPU occupancy) |
-
-**Depth models** (from digit width `N`, see [`depth.py`](vedic_benchmark/analysis/depth.py)):
-
-- **Vedic:** `parallel_width = N`; `sequential_depth = Σ_k (1 + ⌈log₂ p⌉ if p>1 + carry_layer)` where `p = min(k+1, 2N−1−k)`.
-- **Schoolbook:** `parallel_width = N²` (all digit multiplies independent); `sequential_depth = 2N − 1` (row chain + sequential row accumulation).
-
----
-
-## Verification (before Phase 2)
-
-Four layers validate algorithms, counters, depth theory, and timing. Install dev deps and run from the repo root:
+## 13. Development
 
 ```powershell
 pip install -r requirements-dev.txt
 python -m pytest tests/ -v
-python scripts/verify_counters.py
-python scripts/audit_results.py
-python scripts/benchmark_order_check.py
-python scripts/cross_verify_sample.py --count 5
-```
-
-| Layer | What | Artifact |
-|-------|------|----------|
-| 1 | Product correctness (edge + mixed-width operands) | [`tests/test_correctness.py`](tests/test_correctness.py) |
-| 2 | Operation counter golden values | [`scripts/verify_counters.py`](scripts/verify_counters.py), [`tests/test_counter_golden.py`](tests/test_counter_golden.py) |
-| 3 | Depth formulas + CSV depth columns | [`tests/test_depth.py`](tests/test_depth.py), [`scripts/audit_results.py`](scripts/audit_results.py) |
-| 4 | Timing variance / order bias | [`scripts/audit_results.py`](scripts/audit_results.py) (WARN lines), [`scripts/benchmark_order_check.py`](scripts/benchmark_order_check.py) |
-
-**Instrumentation notes (Layer 2):**
-
-- **Vedic** counts every `add` / `carry` via [`_digits.py`](vedic_benchmark/algorithms/_digits.py) plus explicit `carry()` when column overflow digits are promoted — this is the **implementation-defined** metric, not a minimal mathematical carry count.
-- **Schoolbook** uses partial instrumentation in the partial-product row (`product + carry` with selective counter calls); treat schoolbook op totals as comparable trends, not identical accounting to Vedic.
-
-**Iteration sensitivity (Layer 4, manual):** Run the same width with `--iterations 10000` vs `1000000` and compare `mean_time_us` in the CSV; means should agree within a few percent.
-
-**Exit criteria for Phase 2:** all pytest tests green; `audit_results.py` reports 0 errors on your latest CSV; timing WARN lines reviewed or re-run with `--workers 1`.
-
----
-
-## Correctness
-
-Before timing each pair, the runner asserts:
-
-```text
-vedic(a, b) == schoolbook(a, b) == native(a, b)
-```
-
-On failure it logs the operands and exits immediately.
-
----
-
-## Performance tips
-
-| Tip | Reason |
-|-----|--------|
-| Use `--workers 4` (or your CPU core count) | Timing jobs are CPU-bound; **multiprocessing** helps, **threading** does not (GIL) |
-| Lower `--iterations` while developing | Default `100000` is for stable means; `1000`–`10000` is enough for smoke tests |
-| Benchmark outputs are gitignored | Regenerate locally; commit only source code |
-
----
-
-## Roadmap
-
-| Phase | Goal |
-|-------|------|
-| **1 (current)** | Operation counts, DAG parallelism, Python timing, granular CSV/JSONL |
-| **2** | Port instrumented multiply to C++ for cleaner wall-clock measurement |
-| **3** | CUDA / kernel scheduling informed by the DAG model |
-
----
-
-## Further reading
-
-Module-level docstrings in each `.py` file describe that file’s role in the experiment.
-
-For a shorter duplicate of the CLI and metrics sections, see [`vedic_benchmark/README.md`](vedic_benchmark/README.md).
-
----
-
-## Development
-
-```powershell
-pip install -r requirements-dev.txt
-python -m pytest tests/ -v
+cd phase2b && python -m pytest tests/ -v
 ```
 
 ---
 
 ## License
 
-Add a license file if you plan to open-source this repository.
+Add a license file if you open-source this repository.
