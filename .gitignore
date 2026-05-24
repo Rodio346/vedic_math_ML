@@ -39,6 +39,10 @@ phase2a/results/*
 phase2b/results/*
 !phase2b/results/.gitkeep
 
+# Attention DAG generated outputs
+attention_dag/results/*
+!attention_dag/results/.gitkeep
+
 # Phase 3 build and generated CSV
 phase3/build/
 phase3/results/*
