@@ -43,6 +43,31 @@ def _i(row: dict, key: str) -> int:
     return int(float(val))
 
 
+def _mean_time_by_threads(rows: list[dict]) -> dict[int, float]:
+    """Average mean_time_us across pairs for each threads_per_column_block."""
+    by_threads: dict[int, list[float]] = defaultdict(list)
+    for row in rows:
+        by_threads[_i(row, "threads_per_column_block")].append(_f(row, "mean_time_us"))
+    return {t: statistics.mean(times) for t, times in by_threads.items() if times}
+
+
+def _vedic_max_speedup_actual(vedic_rows: list[dict]) -> float:
+    """
+    Population-level Vedic speedup: avg_time(t=1) / min_t(avg_time(t)).
+
+    Do not use speedup_vs_single_thread from the CSV — that field resets to 1.0
+    for every pair and thread sweep, so aggregating it understates true speedup.
+    """
+    mean_t = _mean_time_by_threads(vedic_rows)
+    avg_t1 = mean_t.get(1, 0.0)
+    if avg_t1 <= 0 or not mean_t:
+        return 0.0
+    min_avg = min(mean_t.values())
+    if min_avg <= 0:
+        return 0.0
+    return avg_t1 / min_avg
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Phase 2B vs Phase 3 comparison")
     parser.add_argument(
@@ -110,23 +135,9 @@ def main() -> None:
         vedic_rows = [r for r in rows_w if r["method"] == "vedic"]
         school_rows = [r for r in rows_w if r["method"] == "schoolbook"]
 
-        by_threads_v: dict[int, list[float]] = defaultdict(list)
-        for r in vedic_rows:
-            by_threads_v[_i(r, "threads_per_column_block")].append(_f(r, "mean_time_us"))
-
-        by_threads_s: dict[int, list[float]] = defaultdict(list)
-        for r in school_rows:
-            by_threads_s[_i(r, "threads_per_column_block")].append(_f(r, "mean_time_us"))
-
-        mean_v = {t: statistics.mean(v) for t, v in by_threads_v.items() if v}
-        mean_s = {t: statistics.mean(v) for t, v in by_threads_s.items() if v}
-
-        serial_v = mean_v.get(1, 0.0)
-        vedic_max_actual = 0.0
-        if serial_v > 0:
-            for t, mv in mean_v.items():
-                if mv > 0:
-                    vedic_max_actual = max(vedic_max_actual, serial_v / mv)
+        mean_v = _mean_time_by_threads(vedic_rows)
+        mean_s = _mean_time_by_threads(school_rows)
+        vedic_max_actual = _vedic_max_speedup_actual(vedic_rows)
 
         p2_w = p2_vedic.get(width, {})
         serial_p2 = statistics.mean(p2_w[1]) if p2_w.get(1) else 0.0

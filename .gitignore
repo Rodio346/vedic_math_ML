@@ -47,6 +47,7 @@ phase3/results/*
 # Optional chart and run logs
 *.png
 vedic_benchmark/results/*.log
+scripts/*.log
 
 # Jupyter
 .ipynb_checkpoints/

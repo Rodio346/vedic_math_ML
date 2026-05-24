@@ -21,18 +21,25 @@ def main() -> int:
     )
     parser.add_argument("--iterations", type=int, default=100_000)
     parser.add_argument("--repeat", type=int, default=5)
-    parser.add_argument("--workers", type=int, default=1)
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=None,
+        help="Parallel worker processes (one pair per worker). Default: CPU count - 1.",
+    )
     parser.add_argument("--run-id", type=str, default=None)
     args = parser.parse_args()
 
-    from vedic_benchmark.benchmark.runner import run_benchmark_from_pairs
+    from vedic_benchmark.benchmark.runner import _default_workers, run_benchmark_from_pairs
+
+    workers = args.workers if args.workers is not None else _default_workers()
 
     rows, summaries, run_id = run_benchmark_from_pairs(
         pairs_file=args.pairs_file,
         iterations=args.iterations,
         repeat=args.repeat,
         run_id=args.run_id,
-        workers=args.workers,
+        workers=workers,
     )
     print(f"Run ID: {run_id}")
     print(f"Rows written: {len(rows)}")

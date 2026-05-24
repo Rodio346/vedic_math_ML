@@ -30,7 +30,7 @@ if ($LASTEXITCODE -ne 0) { throw "benchmark run failed" }
 
 Set-Location $Root
 Write-Host "=== 4. Phase 1 on same pairs (long; same iterations as C++) ===" -ForegroundColor Cyan
-python vedic_benchmark/tools/run_from_pairs.py --pairs pairs.json --iterations 100000 --repeat 5 --workers 4
+python vedic_benchmark/tools/run_from_pairs.py --pairs-file pairs.json --iterations 100000 --repeat 5 --workers 4
 
 Write-Host "=== 5. Compare ===" -ForegroundColor Cyan
 python phase2a/tools/compare_phases.py `

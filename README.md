@@ -16,7 +16,7 @@ The central question is not “which method is fastest in Python,” but whether
 | How does parallel **completion time** scale with workers for **real** carries? | DAG simulator on actual operand pairs (Phase 2B) |
 | Does the DAG model **predict** GPU behavior? | CUDA timing vs Phase 2B predictions (Phase 3) |
 
-**Hypothesis:** Vedic groups work by **output column** (all cross-products with `i + j = k`, then carry). Schoolbook builds **partial-product rows** then accumulates. That structural difference should show up as different parallelism profiles—and, above some parallelism level, Vedic may complete fewer dependent steps per multiply.
+**Hypothesis:** Vedic groups work by **output column** (all cross-products with `i + j = k`, then carry). Schoolbook builds **partial-product rows** then accumulates. That structural difference shows up as different parallelism profiles — and above n=4, Phase 2B confirms that Vedic completes fewer sequential dependent steps per multiply, with the critical-path advantage growing to 2× at n=9.
 
 **Out of scope:** Beating `numpy`, production big-integer libraries, or optimal CUDA implementations. Phases 1–3 are **measurement and validation** pipelines.
 
@@ -61,7 +61,7 @@ pip install -r requirements-dev.txt   # pytest for tests
 | **NVIDIA GPU** + driver | Target: RTX 3050 Ti (SM **8.6**) |
 | **CUDA Toolkit** (`nvcc`) | Test: `nvcc --version` |
 | **CMake 3.18+** | With CUDA language support |
-| **MSVC** (Visual Studio 2022 or **2026 / VS 18**) | Required as CUDA host compiler on Windows |
+| **MSVC** (Visual Studio 2022 v17 or later; VS 2026 / v18 also works if installed) | Required as CUDA host compiler on Windows |
 
 PyTorch seeing CUDA does **not** replace `nvcc` + a C++ build for Phase 3.
 
@@ -213,7 +213,9 @@ python -m vedic_benchmark.main --digits 2 --pairs 2 --iterations 1000 --repeat 3
 python -m vedic_benchmark.main --workers 4
 
 # Same pairs as Phase 2A (recommended for cross-phase compare)
-python vedic_benchmark/tools/run_from_pairs.py --pairs pairs.json --iterations 100000 --repeat 5 --workers 4
+# Requires vedic_benchmark/tools/run_from_pairs.py — verify this file exists before running
+# --workers: parallel OS processes, one operand pair per worker (default: CPU count − 1), not GPU threads
+python vedic_benchmark/tools/run_from_pairs.py --pairs-file pairs.json --iterations 100000 --repeat 5 --workers 8
 ```
 
 **Outputs (gitignored):**
@@ -377,11 +379,13 @@ GPU implementation of digit-level Vedic and schoolbook multiply; **validator mus
 
 **Mapping:**
 
-| Phase 2B | Phase 3 |
-|----------|---------|
-| `workers` | `threads_per_column_block` |
-| `workers = -1` | critical path (not timed as separate GPU row) |
-| `completion_time(W)` | simulated steps | `mean_time_us` at thread count `t` |
+| Phase 2B | Phase 3 | Valid? |
+|----------|---------|--------|
+| `workers` | `threads_per_column_block` (intra-column threads) | ✓ Conceptually correct |
+| `workers = -1` | critical path (unlimited parallelism) | ✓ |
+| `completion_time(W)` steps → speedup curve | `mean_time_us` at thread count `t` → speedup curve | ⚠️ See note below |
+
+> ⚠️ **Mapping caveat:** The step-to-µs comparison is valid only when intra-column compute time exceeds kernel launch overhead. Phase 3 (Option A) launches 2n−1 kernels sequentially with `cudaDeviceSynchronize()` between each. At digit widths 4–9 the launch overhead (~5–20 µs per launch) exceeds the computation and dominates `mean_time_us`. The speedup curve shape is directionally comparable; absolute crossover workers are not. A cooperative-groups (Option B) kernel is required for a clean step-to-µs mapping.
 
 **Comparison** ([`phase3/analysis/compare_dag.py`](phase3/analysis/compare_dag.py)):
 
@@ -465,7 +469,7 @@ Run in this order for a full paper-style pipeline:
 |------|-------|-----------------|
 | 1 | Pairs | `python phase2a/tools/export_pairs.py` |
 | 2 | Phase 1 tests | `python -m pytest tests/ -v` |
-| 3 | Phase 1 benchmark | `python vedic_benchmark/tools/run_from_pairs.py ...` |
+| 3 | Phase 1 benchmark | `python vedic_benchmark/tools/run_from_pairs.py ...` (pair-parallel `--workers`) |
 | 4 | Phase 2A | `cd phase2a` → cmake build → `benchmark.exe` |
 | 5 | Phase 2B tests + run | `cd phase2b` → pytest → `main.py` |
 | 6 | Phase 3 | `cd phase3` → cmake build → `benchmark.exe` → `compare_dag.py` |
@@ -479,7 +483,9 @@ Run in this order for a full paper-style pipeline:
 | 1 | `benchmark_results.csv` | Vedic vs schoolbook trends in ops and `parallelism_score` vs width |
 | 2A | `phase2a.csv` + `comparison.csv` | Near-zero Phase1 vs Phase2 **ratio** change (`ratio_change` in compare) |
 | 2B | `phase2b_summary.csv` | `efficiency_ratio > 1` at larger widths; finite `avg_crossover_workers` where Vedic wins under schedule |
-| 3 | `prediction_vs_actual.csv` | `model_valid=yes` for most widths 4–9 |
+| 3 | `prediction_vs_actual.csv` | Speedup trend direction matches DAG prediction (schoolbook sweep flat ✓, Vedic benefits from more threads ✓). Absolute crossover not directly comparable — see Phase 3 caveat below. |
+
+> **Phase 3 note:** The kernel uses Option A — one `cudaDeviceSynchronize()` column launch per column, meaning 2n−1 sequential kernel launches per multiplication. At n=9 that is 17 launches; each carries ~5–20 µs fixed overhead on the RTX 3050 Ti, which dominates wall-clock time at digit widths 4–9. The structural predictions from Phase 2B (schoolbook sweep insensitive to stream count, Vedic speedup with intra-column thread count) are directionally confirmed. The absolute crossover worker count predicted by Phase 2B cannot be validated with Option A — it requires a cooperative-groups implementation where all columns share one kernel launch. `model_valid` in `prediction_vs_actual.csv` reflects this limitation, not a failure of the DAG model.
 
 **Caveats:**
 

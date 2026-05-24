@@ -5,9 +5,11 @@ from __future__ import annotations
 import csv
 import json
 import logging
+import os
 import random
 import statistics
 import sys
+import threading
 import timeit
 import uuid
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -116,6 +118,20 @@ class BenchmarkJobArgs:
     parallelism_score: float
 
 
+@dataclass(frozen=True)
+class PairBenchmarkJobArgs:
+    """Picklable arguments for one operand pair (all methods, sequential in worker)."""
+
+    run_id: str
+    digit_width: int
+    pair_index: int
+    operand_a: int
+    operand_b: int
+    iterations: int
+    repeat: int
+    method_order: tuple[str, ...]
+
+
 def _run_vedic(a: int, b: int) -> int:
     return vedic_alg.multiply(a, b)[0]
 
@@ -162,8 +178,7 @@ def _assert_correctness(a: int, b: int, digit_width: int, pair_index: int) -> in
             f"native={native_result}"
         )
         logger.error(msg)
-        print(msg, file=sys.stderr)
-        raise SystemExit(1)
+        raise RuntimeError(msg)
     return native_result
 
 
@@ -382,52 +397,100 @@ def _benchmark_pair_sequential(
     ]
 
 
-def _benchmark_pair_parallel(
+def _benchmark_one_pair_job(args: PairBenchmarkJobArgs) -> list[BenchmarkRow]:
+    """Worker entry: correctness check + timed runs for all methods on one pair."""
+    product = _assert_correctness(
+        args.operand_a,
+        args.operand_b,
+        args.digit_width,
+        args.pair_index,
+    )
+    depth = compare_depth(args.digit_width)
+    return _benchmark_pair_sequential(
+        args.run_id,
+        args.digit_width,
+        args.pair_index,
+        args.operand_a,
+        args.operand_b,
+        product,
+        args.iterations,
+        args.repeat,
+        depth,
+        args.method_order,
+    )
+
+
+def _default_workers() -> int:
+    return max(1, (os.cpu_count() or 1) - 1)
+
+
+def _log_phase1_start(total_pairs: int, iterations: int, repeat: int, workers: int) -> None:
+    print(
+        f"[phase1] Starting benchmark: {total_pairs} pairs, "
+        f"iterations={iterations}, repeat={repeat}, pair_workers={workers}",
+        flush=True,
+    )
+
+
+def _log_phase1_pair(done: int, total: int, width: int, pair_index: int) -> None:
+    print(
+        f"[phase1] {done}/{total} pairs (width={width}, index={pair_index})",
+        flush=True,
+    )
+
+
+def _handle_pair_failure(exc: BaseException) -> None:
+    print(str(exc), file=sys.stderr)
+    raise SystemExit(1) from exc
+
+
+def _run_pair_jobs(
+    pair_jobs: list[PairBenchmarkJobArgs],
     run_id: str,
-    width: int,
-    pair_index: int,
-    a: int,
-    b: int,
-    product: int,
     iterations: int,
     repeat: int,
-    depth: dict,
-    executor: ProcessPoolExecutor,
-    method_order: tuple[str, ...] = DEFAULT_METHODS,
+    workers: int,
+    out_csv: Path,
+    out_jsonl: Path,
+    order: tuple[str, ...],
 ) -> list[BenchmarkRow]:
-    futures = {}
-    for method in method_order:
-        seq_depth = 0
-        par_width = 0
-        par_score = 0.0
-        if method in depth:
-            dm = depth[method]
-            seq_depth = dm.sequential_depth
-            par_width = dm.parallel_width
-            par_score = dm.parallelism_score
+    """Execute pair jobs sequentially or with pair-level process parallelism."""
+    total = len(pair_jobs)
+    _log_phase1_start(total, iterations, repeat, workers)
+    all_rows: list[BenchmarkRow] = []
+    write_lock = threading.Lock()
 
-        job = BenchmarkJobArgs(
-            run_id=run_id,
-            digit_width=width,
-            pair_index=pair_index,
-            operand_a=a,
-            operand_b=b,
-            product=product,
-            method=method,
-            iterations=iterations,
-            repeat=repeat,
-            sequential_depth=seq_depth,
-            parallel_width=par_width,
-            parallelism_score=par_score,
-        )
-        futures[executor.submit(_benchmark_job, job)] = method
+    def record_pair(pair_rows: list[BenchmarkRow], width: int, pair_index: int, done: int) -> None:
+        with write_lock:
+            _flush_pair_results(pair_rows, out_csv, out_jsonl, repeat, order)
+        _log_phase1_pair(done, total, width, pair_index)
+        all_rows.extend(pair_rows)
 
-    rows_by_method: dict[str, BenchmarkRow] = {}
-    for future in as_completed(futures):
-        row = future.result()
-        rows_by_method[row.method] = row
+    if workers <= 1:
+        for done, job in enumerate(pair_jobs, start=1):
+            try:
+                pair_rows = _benchmark_one_pair_job(job)
+            except RuntimeError as exc:
+                _handle_pair_failure(exc)
+            record_pair(pair_rows, job.digit_width, job.pair_index, done)
+        return all_rows
 
-    return [rows_by_method[method] for method in method_order]
+    with ProcessPoolExecutor(max_workers=workers) as pool:
+        futures = {
+            pool.submit(_benchmark_one_pair_job, job): job
+            for job in pair_jobs
+        }
+        done = 0
+        for future in as_completed(futures):
+            job = futures[future]
+            try:
+                pair_rows = future.result()
+            except RuntimeError as exc:
+                _handle_pair_failure(exc)
+            done += 1
+            record_pair(pair_rows, job.digit_width, job.pair_index, done)
+
+    return all_rows
 
 
 def _aggregate_summaries(rows: list[BenchmarkRow]) -> list[WidthSummary]:
@@ -495,53 +558,35 @@ def run_benchmark(
             raise ValueError(f"unknown method in method_order: {name}")
 
     _init_output_files(out_csv, out_jsonl, repeat)
-    all_rows: list[BenchmarkRow] = []
 
-    pool: ProcessPoolExecutor | None = None
-    if workers > 1:
-        pool = ProcessPoolExecutor(max_workers=workers)
+    pair_jobs: list[PairBenchmarkJobArgs] = []
+    for width in widths:
+        for pair_index, (a, b) in enumerate(
+            _random_pairs(width, pairs_per_width, seed=seed + width)
+        ):
+            pair_jobs.append(
+                PairBenchmarkJobArgs(
+                    run_id=resolved_run_id,
+                    digit_width=width,
+                    pair_index=pair_index,
+                    operand_a=a,
+                    operand_b=b,
+                    iterations=iterations,
+                    repeat=repeat,
+                    method_order=order,
+                )
+            )
 
-    try:
-        for width in widths:
-            pairs = _random_pairs(width, pairs_per_width, seed=seed + width)
-            depth = compare_depth(width)
-
-            for pair_index, (a, b) in enumerate(pairs):
-                product = _assert_correctness(a, b, width, pair_index)
-
-                if pool is None:
-                    pair_rows = _benchmark_pair_sequential(
-                        resolved_run_id,
-                        width,
-                        pair_index,
-                        a,
-                        b,
-                        product,
-                        iterations,
-                        repeat,
-                        depth,
-                        order,
-                    )
-                else:
-                    pair_rows = _benchmark_pair_parallel(
-                        resolved_run_id,
-                        width,
-                        pair_index,
-                        a,
-                        b,
-                        product,
-                        iterations,
-                        repeat,
-                        depth,
-                        pool,
-                        order,
-                    )
-
-                _flush_pair_results(pair_rows, out_csv, out_jsonl, repeat, order)
-                all_rows.extend(pair_rows)
-    finally:
-        if pool is not None:
-            pool.shutdown(wait=True)
+    all_rows = _run_pair_jobs(
+        pair_jobs,
+        resolved_run_id,
+        iterations,
+        repeat,
+        workers,
+        out_csv,
+        out_jsonl,
+        order,
+    )
 
     return all_rows, _aggregate_summaries(all_rows), resolved_run_id
 
@@ -584,49 +629,30 @@ def run_benchmark_from_pairs(
             raise ValueError(f"unknown method in method_order: {name}")
 
     _init_output_files(out_csv, out_jsonl, repeat)
-    all_rows: list[BenchmarkRow] = []
 
-    pool: ProcessPoolExecutor | None = None
-    if workers > 1:
-        pool = ProcessPoolExecutor(max_workers=workers)
+    pair_jobs = [
+        PairBenchmarkJobArgs(
+            run_id=resolved_run_id,
+            digit_width=width,
+            pair_index=pair_index,
+            operand_a=a,
+            operand_b=b,
+            iterations=iterations,
+            repeat=repeat,
+            method_order=order,
+        )
+        for width, pair_index, a, b in _load_pairs_from_json(pairs_file)
+    ]
 
-    try:
-        for width, pair_index, a, b in _load_pairs_from_json(pairs_file):
-            depth = compare_depth(width)
-            product = _assert_correctness(a, b, width, pair_index)
-
-            if pool is None:
-                pair_rows = _benchmark_pair_sequential(
-                    resolved_run_id,
-                    width,
-                    pair_index,
-                    a,
-                    b,
-                    product,
-                    iterations,
-                    repeat,
-                    depth,
-                    order,
-                )
-            else:
-                pair_rows = _benchmark_pair_parallel(
-                    resolved_run_id,
-                    width,
-                    pair_index,
-                    a,
-                    b,
-                    product,
-                    iterations,
-                    repeat,
-                    depth,
-                    pool,
-                    order,
-                )
-
-            _flush_pair_results(pair_rows, out_csv, out_jsonl, repeat, order)
-            all_rows.extend(pair_rows)
-    finally:
-        if pool is not None:
-            pool.shutdown(wait=True)
+    all_rows = _run_pair_jobs(
+        pair_jobs,
+        resolved_run_id,
+        iterations,
+        repeat,
+        workers,
+        out_csv,
+        out_jsonl,
+        order,
+    )
 
     return all_rows, _aggregate_summaries(all_rows), resolved_run_id
